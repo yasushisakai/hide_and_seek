@@ -2,62 +2,41 @@ use super::*;
 
 #[test]
 fn test_bulletproof_basic() {
-    let secret: u64 = u32::max_value().into(); // max value but still in u32
-    let pc_gens = PedersenGens::default();
-    let bp_gens = BulletproofGens::new(64, 1);
-    let mut transcript = Transcript::new(b"single proof");
-    let scalar = Scalar::random(&mut thread_rng());
-
-    let (proof, value) =
-        RangeProof::prove_single(&bp_gens, &pc_gens, &mut transcript, secret, &scalar, 32)
-            .expect("could not make a proof");
-
-    let mut transcript = Transcript::new(b"single proof"); // shadow this
-
-    let result = proof.verify_single(&bp_gens, &pc_gens, &mut transcript, &value, 32);
-
-    assert!(result.is_ok())
+    let proof = SingleBulletProof::new(0u64);
+    assert!(proof.verify());
 }
 
+fn test_bulletproof_basic_fail() {
+    let max32: u64 = u32::max_value().into();
 
+    // this should pass
+    let proof = SingleBulletProof::new(max32);
+    assert!(proof.verify());
+
+    // this should fail
+    let over_range = max32 + 1;
+    let proof = SingleBulletProof::new(over_range);
+    assert!(!proof.verify());
+
+    // this should fail too
+    let over_range_2 = 1u64 << 32;
+    let proof = SingleBulletProof::new(over_range_2);
+    assert!(!proof.verify());
+}
+
+const MEDIA_LAB: (f64, f64) = (42.3603574_f64, -71.0872641_f64);
+const KENDAL_STATION: (f64, f64) = (42.362484_f64, -71.085577_f64);
 
 #[test]
-fn test_bulletproof_basic_fail_1() {
-    let mut secret: u64 = u32::max_value().into();
-    secret += 1; // this kicks out of the u32 range
-    let pc_gens = PedersenGens::default();
-    let bp_gens = BulletproofGens::new(64, 1);
-    let mut transcript = Transcript::new(b"single proof");
-    let scalar = Scalar::random(&mut thread_rng());
-
-    let (proof, value) =
-        RangeProof::prove_single(&bp_gens, &pc_gens, &mut transcript, secret, &scalar, 32)
-            .expect("could not make a proof");
-    let mut transcript = Transcript::new(b"single proof"); // shadow this
-    let result = proof.verify_single(&bp_gens, &pc_gens, &mut transcript, &value, 32);
-    assert!(!result.is_ok()) // this should be false because we are out of range
+fn test_location_distance() {
+    let lab = Location::new(MEDIA_LAB.0, MEDIA_LAB.1);
+    let station = Location::new(KENDAL_STATION.0, KENDAL_STATION.1);
+    let threshold = 280.0; // meters, got this approximate distance using google maps
+    let distance = lab.distance(&station);
+    assert!(distance < threshold);
 }
 
-#[test]
-fn test_bulletproof_basic_fail_2() {
-    let mut secret: u64 = 1u32.into();
-    secret = secret << 32; // shift 32 zeros goes out of 32 bit range
-    println!("secret: {}",secret);
-    let pc_gens = PedersenGens::default();
-    let bp_gens = BulletproofGens::new(64, 1);
-    let mut transcript = Transcript::new(b"single proof");
-    let scalar = Scalar::random(&mut thread_rng());
-
-    let (proof, value) =
-        RangeProof::prove_single(&bp_gens, &pc_gens, &mut transcript, secret, &scalar, 32)
-            .expect("could not make a proof");
-    let mut transcript = Transcript::new(b"single proof"); // shadow this
-    let result = proof.verify_single(&bp_gens, &pc_gens, &mut transcript, &value, 32);
-    assert!(!result.is_ok()) // this should be false because we are out of range
-}
-
-// const MEDIA_LAB = Location::new(42.3603574, -71.0872641);
-
+//
 // #[test]
 // fn test_hide_and_seek_basic() {
 //
@@ -76,7 +55,7 @@ fn test_bulletproof_basic_fail_2() {
 // fn test_hide_and_sekk_basic_fail() {
 //
 //     let now = Utc::now();
-//     let far_away = Location::new(35.6804114,139.7690105); // somewhere close to Tokyo
+//     let far_away = Location::new(35.6804114,139.7690105); // somewhere close to Tokyo Station
 //     let fence = Fence::new(MEDIA_LAB, 300, now, 60*60);
 //     let after_half_hour = now + Duration::minutes(30);
 //
