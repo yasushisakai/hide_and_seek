@@ -1,16 +1,24 @@
 use std::ops;
+use serde::{Serialize, Deserialize};
 
 pub type Meters = f64;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Location {
     pub lat: f64,
     pub lng: f64,
 }
 
 impl Location {
-
     pub fn new(lat: f64, lng:f64) -> Self{
         Self{lat, lng}
+    }
+
+    pub fn from_tuple(t: &(f64, f64)) -> Self{
+        Self{
+            lat: t.0,
+            lng: t.1,
+        }
     }
 
     fn to_radians(&self) -> (f64, f64) {

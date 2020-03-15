@@ -2,7 +2,9 @@ use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
 use curve25519_dalek::{ristretto::CompressedRistretto, scalar::Scalar};
 use merlin::Transcript;
 use rand::thread_rng;
+use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SingleBulletProof {
     rp: RangeProof,
     cv: CompressedRistretto
@@ -27,6 +29,20 @@ impl SingleBulletProof {
         let mut transcript = Transcript::new(TRANSCRIPT);
         let result = self.rp.verify_single(&bp_gens, &pc_gens, &mut transcript, &self.cv, 32);
         result.is_ok()
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut combined = self.rp.to_bytes();
+        let mut commit_value = self.cv.to_bytes().to_vec();
+        combined.append(&mut commit_value);
+
+        combined
+    }
+
+    pub fn from_bytes(combined: &[u8])-> Self {
+        let rp = RangeProof::from_bytes(&combined[..608]).expect("could not convert to range proof");
+        let cv = CompressedRistretto::from_slice(&combined[608..]);
+        Self{rp, cv}
     }
 
 }
